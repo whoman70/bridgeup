@@ -1,0 +1,388 @@
+import { useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogHeader,
+  DialogFooter
+} from "@/components/ui/dialog";
+import { MoreHorizontal } from "lucide-react";
+
+export default function App() {
+  const [page, setPage] = useState("dashboard");
+  const [wizardStep, setWizardStep] = useState(0);
+  const [newBridge, setNewBridge] = useState(false);
+  const SYSTEM_CATEGORIES = {
+    CRM: ["GoHighLevel", "HubSpot", "Salesforce", "Zoho", "Freshsales"],
+    PMS: ["Buildium", "AppFolio", "TenantCloud", "Rentec Direct", "Propertyware"],
+    HMS: ["AthenaHealth", "eClinicalWorks", "NextGen", "DrChrono", "Kareo"],
+    MEDICAL: ["Epic", "Cerner", "Meditech", "Allscripts", "Greenway Health"]
+  };
+  const [selectedSystemA, setSelectedSystemA] = useState("");
+  const [selectedSystemB, setSelectedSystemB] = useState("");
+  const [testA, setTestA] = useState("");
+  const [testB, setTestB] = useState("");
+  const [logs] = useState([
+    "[2025-04-01] Synced 12 contacts between GoHighLevel and AthenaHealth.",
+    "[2025-04-01] Scheduled hourly sync setup for Buildium → HubSpot.",
+    "[2025-03-31] Error: Invalid API Key for Salesforce.",
+    "[2025-03-30] Manual sync run by admin."
+  ]);
+  const [searchTermA, setSearchTermA] = useState("");
+  const [searchTermB, setSearchTermB] = useState("");
+  const [bridges, setBridges] = useState([
+    { name: "Demo Clinic → HubSpot", systems: ["AthenaHealth", "HubSpot"], status: "Active" }
+  ]);
+
+  const [bridgeToEdit, setBridgeToEdit] = useState(null);
+  const [bridgeToDelete, setBridgeToDelete] = useState(null);
+  const [syncSettingsBridge, setSyncSettingsBridge] = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+
+  const addBridge = () => {
+    const newB = {
+      name: `${selectedSystemA} → ${selectedSystemB}`,
+      systems: [selectedSystemA, selectedSystemB],
+      status: "Active"
+    };
+    setBridges([...bridges, newB]);
+    setNewBridge(false);
+    setWizardStep(0);
+    setSelectedSystemA("");
+    setSelectedSystemB("");
+    setTestA("");
+    setTestB("");
+  };
+
+return (
+    <div className="flex h-screen">
+      <aside className="w-64 bg-gray-100 p-4 border-r flex flex-col">
+        <div>
+          <h1 className="text-2xl font-bold mb-6">BridgeUp</h1>
+          <nav className="space-y-2">
+            <Button variant="ghost" className="w-full justify-start" onClick={() => setPage("dashboard")}>Dashboard</Button>
+            <hr className="my-2" />
+            <Button variant="ghost" className="w-full justify-start" onClick={() => setPage("connections")}>Connections</Button>
+            <Button variant="ghost" className="w-full justify-start" onClick={() => setPage("mapping")}>Field Mapping</Button>
+            <Button variant="ghost" className="w-full justify-start" onClick={() => setPage("logs")}>Logs & History</Button>
+            <Button variant="ghost" className="w-full justify-start" onClick={() => setPage("test")}>Test & Debug</Button>
+          </nav>
+          <div className="flex-grow" />
+          <div>
+            <hr className="my-2" />
+            <Button variant="ghost" className="w-full justify-start" onClick={() => setPage("settings")}>Settings</Button>
+          </div>
+        </div>
+      </aside>
+
+      <main className="flex-1 p-6 overflow-auto">
+        {page === "dashboard" && <h2 className="text-2xl font-semibold mb-4">Welcome to BridgeUp</h2>}
+
+        {page === "connections" && !newBridge && (
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold">My Bridges</h2>
+                <Button onClick={() => setNewBridge(true)}>Create New Bridge</Button>
+              </div>
+              {bridges.map((b, i) => (
+                <div key={i} className="border p-4 rounded mb-2 flex justify-between items-center">
+                  <div>
+                    <p className="font-bold">{b.name}</p>
+                    <p className="text-sm text-gray-500">{b.systems.join(" → ")} | Status: {b.status}</p>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger><Button variant="ghost" size="icon"><MoreHorizontal /></Button></DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      <DropdownMenuItem onClick={() => setBridgeToEdit({ ...b, index: i })}>Edit</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setSyncSettingsBridge({ ...b, index: i })}>Sync Settings</DropdownMenuItem>
+                      <DropdownMenuItem className="text-red-600" onClick={() => setBridgeToDelete(i)}>Delete</DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
+        {page === "connections" && newBridge && (
+          <Card>
+            <CardContent className="p-6">
+              <Button variant="ghost" onClick={() => setNewBridge(false)}>← Back</Button>
+              <h2 className="text-xl font-semibold mb-4">Create New Bridge</h2>
+              {wizardStep === 0 && (
+                <div className="space-y-4">
+                  <Label>Select Source System</Label>
+                  <Input
+                    placeholder="Search systems..."
+                    className="mb-4"
+                    onChange={(e) => setSearchTermA(e.target.value.toLowerCase())}
+                  />
+                  {Object.entries(SYSTEM_CATEGORIES).map(([category, systems]) => (
+                    <div key={category}>
+                      <p className="font-semibold mt-4">{category}</p>
+                      <div className="grid grid-cols-2 gap-2 mt-2">
+                        {systems
+                          .filter((s) => s.toLowerCase().includes(searchTermA))
+                          .map((s) => (
+                            <Button
+                              key={s}
+                              onClick={() => setSelectedSystemA(s)}
+                              variant={selectedSystemA === s ? "default" : "outline"}
+                            >
+                              {s}
+                            </Button>
+                          ))}
+                      </div>
+                    </div>
+                  ))}
+                  <Button className="mt-4" disabled={!selectedSystemA} onClick={() => setWizardStep(1)}>Continue</Button>
+                </div>
+              )}
+              {wizardStep === 1 && (
+                <div className="space-y-4">
+                  <Label>Enter credentials for {selectedSystemA}</Label>
+                  <Input placeholder="API Key" className="mb-2" value={testA} onChange={(e) => setTestA(e.target.value)} />
+                  <Input placeholder="Client ID" className="mb-2" />
+                  <Input placeholder="Client Secret" className="mb-2" />
+                  <Button onClick={() => setWizardStep(2)} disabled={!testA}>Next</Button>
+                </div>
+              )}
+              {wizardStep === 2 && (
+                <div className="space-y-4">
+                  <Label>Select Target System</Label>
+                  <Input
+                    placeholder="Search systems..."
+                    className="mb-4"
+                    onChange={(e) => setSearchTermB(e.target.value.toLowerCase())}
+                  />
+                  {Object.entries(SYSTEM_CATEGORIES).map(([category, systems]) => (
+                    <div key={category}>
+                      <p className="font-semibold mt-4">{category}</p>
+                      <div className="grid grid-cols-2 gap-2 mt-2">
+                        {systems
+                          .filter((s) => s.toLowerCase().includes(searchTermB))
+                          .map((s) => (
+                            <Button
+                              key={s}
+                              onClick={() => setSelectedSystemB(s)}
+                              variant={selectedSystemB === s ? "default" : "outline"}
+                            >
+                              {s}
+                            </Button>
+                          ))}
+                      </div>
+                    </div>
+                  ))}
+                <Button className="mt-4" disabled={!selectedSystemB} onClick={() => setWizardStep(3)}>Continue</Button>
+              </div>
+            )}
+              {wizardStep === 3 && (
+                <div className="space-y-4">
+                  <Label>Enter credentials for {selectedSystemB}</Label>
+                  <Input placeholder="API Key" className="mb-2" value={testB} onChange={(e) => setTestB(e.target.value)} />
+                  <Input placeholder="Client ID" className="mb-2" />
+                  <Input placeholder="Client Secret" className="mb-2" />
+                  <Button onClick={() => setWizardStep(4)} disabled={!testB}>Next</Button>
+                </div>
+              )}
+        
+        {wizardStep === 4 && (
+          <div className="space-y-4">
+            <Label>Choose Sync Settings</Label>
+            <Tabs defaultValue="realtime">
+              <TabsList>
+                <TabsTrigger value="realtime">Real-time</TabsTrigger>
+                <TabsTrigger value="hourly">Hourly</TabsTrigger>
+                <TabsTrigger value="manual">Manual</TabsTrigger>
+              </TabsList>
+              <TabsContent value="realtime">Changes will sync in real-time.</TabsContent>
+              <TabsContent value="hourly">Changes will sync every hour.</TabsContent>
+              <TabsContent value="manual">
+                You will need to manually trigger syncs.
+              </TabsContent>
+            </Tabs>
+            <Button onClick={addBridge}>Finish</Button>
+          </div>
+        )}
+       </CardContent>
+  </Card>
+)}
+
+        {page === "mapping" && (
+          <Card>
+            <CardContent className="p-6">
+              <h2 className="text-xl font-semibold mb-4">Field Mapping</h2>
+              <Tabs defaultValue="contacts">
+                <TabsList>
+                  <TabsTrigger value="contacts">Contacts</TabsTrigger>
+                  <TabsTrigger value="appointments">Appointments</TabsTrigger>
+                  <TabsTrigger value="custom">Custom Fields</TabsTrigger>
+                </TabsList>
+                <TabsContent value="contacts">
+                  <div className="grid grid-cols-2 gap-4 mt-4">
+                    <Input placeholder="CRM Field: First Name" />
+                    <Input placeholder="PMS Field: Given Name" />
+                    <Input placeholder="CRM Field: Email" />
+                    <Input placeholder="PMS Field: Contact Email" />
+                  </div>
+                </TabsContent>
+                <TabsContent value="appointments">
+                  <div className="grid grid-cols-2 gap-4 mt-4">
+                    <Input placeholder="CRM Field: Appointment Date" />
+                    <Input placeholder="PMS Field: Visit Date" />
+                  </div>
+                </TabsContent>
+                <TabsContent value="custom">
+                  <div className="grid grid-cols-2 gap-4 mt-4">
+                    <Input placeholder="CRM Field: Custom Note" />
+                    <Input placeholder="PMS Field: Description" />
+                  </div>
+                </TabsContent>
+              </Tabs>
+              <Button className="mt-4">Save Mapping</Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {page === "logs" && (
+          <Card>
+            <CardContent className="p-6 space-y-2">
+              <h2 className="text-xl font-semibold mb-4">Logs & History</h2>
+              {logs.map((log, i) => (
+                <p key={i} className="text-sm text-gray-700">{log}</p>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
+        {page === "test" && (
+          <Card>
+            <CardContent className="p-6">
+              <h2 className="text-xl font-semibold mb-4">Test & Debug</h2>
+              {bridges.map((b, i) => (
+                <div key={i} className="flex justify-between items-center mb-2 border p-3 rounded">
+                  <p>{b.name}</p>
+                  <Button variant="outline">Run Test</Button>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
+        {page === "settings" && (
+          <Card>
+            <CardContent className="p-6">
+              <h2 className="text-xl font-semibold mb-4">Settings</h2>
+              <Tabs defaultValue="account">
+                <TabsList>
+                  <TabsTrigger value="account">Account</TabsTrigger>
+                  <TabsTrigger value="business">Business</TabsTrigger>
+                  <TabsTrigger value="login">Login</TabsTrigger>
+                  <TabsTrigger value="payment">Payment</TabsTrigger>
+                  <TabsTrigger value="subscription">Subscription</TabsTrigger>
+                </TabsList>
+                <TabsContent value="account">
+                  <Input placeholder="Full Name" className="mt-4" />
+                  <Input placeholder="Email Address" className="mt-2" />
+                </TabsContent>
+                <TabsContent value="business">
+                  <Input placeholder="Business Name" className="mt-4" />
+                  <Input placeholder="Business Email" className="mt-2" />
+                </TabsContent>
+                <TabsContent value="login">
+                  <Input type="password" placeholder="New Password" className="mt-4" />
+                  <Input type="password" placeholder="Confirm Password" className="mt-2" />
+                </TabsContent>
+                <TabsContent value="payment">
+                  <Input placeholder="Card Number" className="mt-4" />
+                  <Input placeholder="Expiration Date" className="mt-2" />
+                </TabsContent>
+                <TabsContent value="subscription">
+                  <p className="mt-4">Current Plan: Pro</p>
+                  <Button className="mt-2">Upgrade</Button>
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
+        )}
+
+        <Dialog open={bridgeToEdit !== null} onOpenChange={() => setBridgeToEdit(null)}>
+          <DialogContent>
+            <DialogTitle>Edit Bridge Name</DialogTitle>
+            <DialogHeader>
+              <p className="text-sm">Edit the display name for this bridge:</p>
+            </DialogHeader>
+            <Input value={bridgeToEdit?.name || ""} onChange={(e) => {
+              const updated = [...bridges];
+              updated[bridgeToEdit.index].name = e.target.value;
+              setBridges(updated);
+              setBridgeToEdit({ ...bridgeToEdit, name: e.target.value });
+            }} />
+            <DialogFooter>
+              <Button onClick={() => setBridgeToEdit(null)}>Close</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={syncSettingsBridge !== null} onOpenChange={() => setSyncSettingsBridge(null)}>
+          <DialogContent>
+            <DialogTitle>Sync Settings</DialogTitle>
+            <DialogHeader>
+              <p className="text-sm">Choose how you'd like to sync this bridge:</p>
+            </DialogHeader>
+            <Tabs defaultValue="realtime">
+              <TabsList>
+                <TabsTrigger value="realtime">Real-time</TabsTrigger>
+                <TabsTrigger value="hourly">Hourly</TabsTrigger>
+                <TabsTrigger value="manual">Manual</TabsTrigger>
+              </TabsList>
+              <TabsContent value="realtime">Changes sync instantly.</TabsContent>
+              <TabsContent value="hourly">Changes sync every hour.</TabsContent>
+              <TabsContent value="manual">
+                <Button className="mt-4">Run Sync</Button>
+              </TabsContent>
+            </Tabs>
+            <DialogFooter>
+              <Button onClick={() => setSyncSettingsBridge(null)}>Done</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={bridgeToDelete !== null} onOpenChange={() => setBridgeToDelete(null)}>
+          <DialogContent>
+            <DialogTitle>Delete Bridge</DialogTitle>
+            <DialogHeader>
+              <p className="text-sm">Type <strong>delete</strong> to confirm this action.</p>
+            </DialogHeader>
+            <Input value={deleteConfirm} onChange={(e) => setDeleteConfirm(e.target.value)} placeholder="delete" />
+            <DialogFooter>
+              <Button variant="secondary" onClick={() => setBridgeToDelete(null)}>Cancel</Button>
+              <Button
+                variant="destructive"
+                disabled={deleteConfirm !== "delete"}
+                onClick={() => {
+                  setBridges(bridges.filter((_, i) => i !== bridgeToDelete));
+                  setDeleteConfirm("");
+                  setBridgeToDelete(null);
+                }}
+              >Delete</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </main>
+    </div>
+  );
+}
